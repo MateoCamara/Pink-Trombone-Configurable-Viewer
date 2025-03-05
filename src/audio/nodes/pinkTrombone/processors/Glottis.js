@@ -49,7 +49,7 @@ class Glottis {
         }
 
         var frequency = parameterSamples.frequency;
-        vibrato = 0; // CAMBIO: desactivo el vibrato
+        // vibrato = 0; // CAMBIO: desactivo el vibrato
         frequency *= (1 + vibrato);
 
         // if (sampleIndex % 10000 === 0) {
@@ -78,8 +78,9 @@ class Glottis {
         // process
         var outputSample = 0;
         
-        var noiseModulator = this._getNoiseModulator(interpolation);
+        var noiseModulator = this._getNoiseModulator(interpolation, tenseness, intensity);
             noiseModulator += ((1 -(tenseness*intensity)) *3);
+
         parameterSamples.noiseModulator = noiseModulator;
 
         var noise = parameterSamples.noise;
@@ -89,6 +90,8 @@ class Glottis {
             noise *= (1 - Math.sqrt(Math.max(tenseness, 0)));
             noise *= (0.02*this.noise.simplex1(seconds*1.99)) + 0.2;
 
+        if (intensity === 0) noise = 0.3;
+
         var voice = this._getNormalizedWaveform(interpolation);
             voice *= intensity;
             voice *= loudness;
@@ -97,7 +100,6 @@ class Glottis {
         // console.log('noise', noise)
 
         outputSample = noise + voice;
-        outputSample *= intensity;
 
         return outputSample;
     }
@@ -146,17 +148,9 @@ class Glottis {
             this.coefficients.E0 * Math.exp(this.coefficients.alpha*interpolation) * Math.sin(this.coefficients.omega * interpolation);
     }
 
-    _getNoiseModulator(interpolation) {
-        const angle = 2*Math.PI*interpolation;
-        const amplitude = Math.sin(angle);
-        const positiveAmplitude = Math.max(0, amplitude);
-        
-        const offset = 0.1
-        const gain = 0.2;
-
-        const noiseModulator = ((positiveAmplitude *gain) + offset);
-
-        return noiseModulator;
+    _getNoiseModulator(interpolation, tenseness, intensity) {
+        const voiced = 0.1 + 0.2 * Math.max(0, Math.sin(Math.PI * 2 * interpolation));
+        return tenseness * intensity * voiced + (1 - tenseness * intensity) * 0.3;
     }
 }
 
