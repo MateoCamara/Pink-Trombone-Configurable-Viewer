@@ -97,17 +97,14 @@ class PinkTromboneElement extends HTMLElement {
 
         // resume event (toggle audio context state)
         this.addEventListener("resume", (event) => {
-            if (this.audioContext.state === "running") {
-                // Suspend audio (mute)
-                this.audioContext.suspend().then(() => {
-                    event.target.dispatchEvent(new CustomEvent("didMute"));
-                });
+            if (this.parameters.intensity.value > 0) {
+                // Mute: Setear intensidad a 0 y parámetros relacionados
+                this.parameters.intensity.value = 0;
+                event.target.dispatchEvent(new CustomEvent("didMute"));
             } else {
-                // Resume audio (unmute) and start sound production
-                this.audioContext.resume().then(() => {
-                    this.pinkTrombone.start();
-                    event.target.dispatchEvent(new CustomEvent("didResume"));
-                });
+                // Unmute: Restaurar valores anteriores
+                this.parameters.intensity.value = 1; // O valores deseados
+                event.target.dispatchEvent(new CustomEvent("didResume"));
             }
         });
 
