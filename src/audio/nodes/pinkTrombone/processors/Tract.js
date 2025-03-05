@@ -169,10 +169,14 @@ class Tract {
         this.tongue.diameter = parameterSamples.tongueDiameter;
         this.tongue.index = parameterSamples.tongueIndex;
 
-        // console.log(this.tongue.index)
+
 
         // if (sampleIndex % 10000 === 0) {
-        //     console.log(parameterSamples)
+        //     // console.log(this.tongue.diameter)
+        //     // console.log(parameterSamples)
+        //     // console.log(this.previousConstrictions[0])
+        //     // console.log(this.length)
+        //     // console.log(this.previousConstrictions[1])
         // }
 
         this._processTransients(seconds);
@@ -188,7 +192,7 @@ class Tract {
         if(isNaN(outputSample))
             this.reset();
 
-        return outputSample;
+        return outputSample * 0.125;
     }
 
     _processTransients(seconds) {
@@ -205,10 +209,22 @@ class Tract {
     _processConstrictions(constrictions, parameterSamples) {
         for(let index = 0; index < constrictions.length; index++) {
             const constriction = constrictions[index];
-            // console.log(constrictions[index])
+            // console.log(this.length)
 
+            if (constriction.index >= 2 && constriction.index <= this.length) {
+                const thinness = Math.clamp(8 * (0.7 - constriction.diameter), 0, 1);
+                const openness = Math.clamp(30 * (constriction.diameter - 0.3), 0, 1); // ← Umbral original (0.3)
+                const turbulence = (Math.random() * 2 - 1) * thinness * openness *0.1;
 
-            
+                // Inyectar ruido en las posiciones adyacentes al índice de constricción
+                const lowerIndex = Math.floor(constriction.index);
+                const upperIndex = lowerIndex + 1;
+                this.right[lowerIndex] += turbulence * 0.5;
+                this.left[lowerIndex] += turbulence * 0.5;
+                this.right[upperIndex] += turbulence * 0.5;
+                this.left[upperIndex] += turbulence * 0.5;
+            }
+
             if(constriction.index >= 2 && constriction.index <= this.length && constriction.diameter > 0) {
                 var noise = parameterSamples.glottis;
 
@@ -417,6 +433,15 @@ class Tract {
                 this.transients.push(new Transient(this.transients.obstruction.new, seconds));
 
             this.transients.obstruction.last = this.transients.obstruction.new;
+        }
+        if (this.transients.obstruction.last !== -1 && this.transients.obstruction.new === -1) {
+            this.transients.push(new Transient(
+                this.transients.obstruction.last,
+                seconds,
+                0.3,   // strength
+                200,   // exponent
+                0.2    // lifeTime
+            ));
         }
     }
 
