@@ -177,6 +177,9 @@ class Tract {
         //     // console.log(this.previousConstrictions[0])
         //     // console.log(this.length)
         //     // console.log(this.previousConstrictions[1])
+        //     // for (let i of this.previousConstrictions) {
+        //     //     console.log(i)
+        //     // }
         // }
 
         this._processTransients(seconds);
@@ -211,20 +214,6 @@ class Tract {
             const constriction = constrictions[index];
             // console.log(this.length)
 
-            if (constriction.index >= 2 && constriction.index <= this.length) {
-                const thinness = Math.clamp(8 * (0.7 - constriction.diameter), 0, 1);
-                const openness = Math.clamp(30 * (constriction.diameter - 0.3), 0, 1); // ← Umbral original (0.3)
-                const turbulence = (Math.random() * 2 - 1) * thinness * openness *0.1;
-
-                // Inyectar ruido en las posiciones adyacentes al índice de constricción
-                const lowerIndex = Math.floor(constriction.index);
-                const upperIndex = lowerIndex + 1;
-                this.right[lowerIndex] += turbulence * 0.5;
-                this.left[lowerIndex] += turbulence * 0.5;
-                this.right[upperIndex] += turbulence * 0.5;
-                this.left[upperIndex] += turbulence * 0.5;
-            }
-
             if(constriction.index >= 2 && constriction.index <= this.length && constriction.diameter > 0) {
                 var noise = parameterSamples.glottis;
 
@@ -243,6 +232,18 @@ class Tract {
                 const upperIndex = lowerIndex+1;
                     const upperWeight = upperIndex - constriction.index;
                         const upperNoise = noise * upperWeight;
+
+                // Include fricative noise
+                if (constriction.diameter < 0.5) {
+                    const fricative_noise = Math.random() * 2 - 1
+
+                    const turbulence = fricative_noise * thinness * openness * 0.03;
+
+                    this.right[lowerIndex] += turbulence
+                    this.left[lowerIndex] += turbulence
+                    this.right[upperIndex] += turbulence
+                    this.left[upperIndex] += turbulence
+                }
                     
                 this.right[lowerIndex+1] += lowerNoise;
                 this.right[upperIndex+1] += upperNoise;
