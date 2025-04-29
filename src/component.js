@@ -31,49 +31,11 @@ async function playSoundSequence(
     } while (loop);
 }
 
-const dynamicEventHandlers = {
-    roy: async function (event, cfg) {
-        const steps = cfg.steps || 10;
-        // Destructure configuration parameters
-        let {
-            freqs,
-            voicenesses,
-            tongue_indexes,
-            tongue_diams,
-            lip_diams,
-            constriction_indexes,
-            constriction_diams,
-            // Optional: throat_diams,
-        } = cfg;
-
-        // Interpolate values for smooth transitions
-        freqs = interpolateArrayValues(freqs, steps);
-        voicenesses = interpolateArrayValues(voicenesses, steps);
-        tongue_indexes = interpolateArrayValues(tongue_indexes, steps);
-        tongue_diams = interpolateArrayValues(tongue_diams, steps);
-        lip_diams = interpolateArrayValues(lip_diams, steps);
-        constriction_indexes = interpolateArrayValues(constriction_indexes, steps);
-        constriction_diams = interpolateArrayValues(constriction_diams, steps);
-        // throat_diams = interpolateArrayValues(throat_diams, steps);
-
-        await playSoundSequence(
-            freqs,
-            voicenesses,
-            tongue_indexes,
-            tongue_diams,
-            lip_diams,
-            constriction_indexes,
-            constriction_diams
-        );
-        return 1;
-    }
-    // You can register more dynamic handlers as needed.
-};
-
 class PinkTromboneElement extends HTMLElement {
     constructor() {
         super();
         this._animationFrameObservers = [];
+        this._dynamicButtonContainer = null; // Initialize button container reference
         window.customElements.whenDefined("pink-trombone").then(() => {
             // Attach system event listeners
             this.attachSystemEventListeners();
@@ -257,52 +219,72 @@ class PinkTromboneElement extends HTMLElement {
 
     // Attach each dynamic event based on its configuration and registered handler
     attachDynamicEventListeners(tractConfigs) {
+        // Ensure the button container exists if UI is enabled
+        if (this.UI && !this._dynamicButtonContainer) {
+            this._dynamicButtonContainer = document.createElement('div');
+            this._dynamicButtonContainer.style.padding = '10px'; // Basic styling
+            this._dynamicButtonContainer.style.borderTop = '1px solid #ccc';
+             // Append inside the UI component node, adjust if needed
+            this.UI.node.appendChild(this._dynamicButtonContainer);
+        }
+
         tractConfigs.forEach((config) => {
             if (!config.enabled) return;
             const eventName = config.name;
-            const handler = dynamicEventHandlers[eventName];
-            if (handler) {
-                this.addEventListener(eventName, async (event) => {
-                    await handler.call(this, event, config.config);
-                });
-            } else {
-                console.warn(`No registered handler for event ${eventName}`);
+            const configData = config.config;
+
+            // Create a button if UI is enabled
+            if (this.UI && this._dynamicButtonContainer) {
+                const button = document.createElement('button');
+                button.textContent = eventName;
+                button.style.margin = '5px'; // Basic styling
+                button.onclick = () => {
+                    this.dispatchEvent(new CustomEvent(eventName));
+                };
+                this._dynamicButtonContainer.appendChild(button);
             }
+
+            // Add the generic event listener for this configuration
+            this.addEventListener(eventName, async (event) => {
+                console.log(`Handling event: ${eventName}`);
+                const steps = configData.steps || 10;
+
+                // Destructure and interpolate values
+                let {
+                    freqs,
+                    voicenesses,
+                    tongue_indexes,
+                    tongue_diams,
+                    lip_diams,
+                    constriction_indexes,
+                    constriction_diams,
+                    // Optional: throat_diams
+                } = configData;
+
+                freqs = interpolateArrayValues(freqs || [], steps);
+                voicenesses = interpolateArrayValues(voicenesses || [], steps);
+                tongue_indexes = interpolateArrayValues(tongue_indexes || [], steps);
+                tongue_diams = interpolateArrayValues(tongue_diams || [], steps);
+                lip_diams = interpolateArrayValues(lip_diams || [], steps);
+                constriction_indexes = interpolateArrayValues(constriction_indexes || [], steps);
+                constriction_diams = interpolateArrayValues(constriction_diams || [], steps);
+                // Optional: throat_diams = interpolateArrayValues(throat_diams || [], steps);
+
+                await playSoundSequence(
+                    freqs,
+                    voicenesses,
+                    tongue_indexes, // Ensure these names match playSoundSequence arguments
+                    tongue_diams,
+                    lip_diams,
+                    constriction_indexes,
+                    constriction_diams
+                );
+                // Maybe reset lip diameter or other params after sequence?
+                // if (this.parameters.lipConstriction?.diameter) {
+                //     this.parameters.lipConstriction.diameter.value = 0;
+                // }
+            });
         });
-    }
-
-    // Produce sound by interpolating and applying sound parameters
-    async produceSound(
-        freqs,
-        voicenesses,
-        tongue_indexes,
-        tongue_diams,
-        lip_diams,
-        constriction_indexes,
-        constriction_diams
-    ) {
-        const steps = 5;
-        freqs = interpolateArrayValues(freqs, steps);
-        voicenesses = interpolateArrayValues(voicenesses, steps);
-        tongue_indexes = interpolateArrayValues(tongue_indexes, steps);
-        tongue_diams = interpolateArrayValues(tongue_diams, steps);
-        lip_diams = interpolateArrayValues(lip_diams, steps);
-        constriction_indexes = interpolateArrayValues(constriction_indexes, steps);
-        constriction_diams = interpolateArrayValues(constriction_diams, steps);
-        // Optional: throat_diams = interpolateArrayValues(throat_diams, steps);
-
-        await playSoundSequence(
-            freqs,
-            voicenesses,
-            tongue_indexes,
-            tongue_diams,
-            lip_diams,
-            constriction_indexes,
-            constriction_diams
-        );
-        // Reset lip constriction after loop ends
-        lipConstriction.diameter.value = 0;
-        return 1;
     }
 
     // Enable the UI component
@@ -310,8 +292,19 @@ class PinkTromboneElement extends HTMLElement {
         if (!this.UI) {
             this.UI = new PinkTromboneUI();
             this.appendChild(this.UI.node);
+
+            // Create container if it doesn't exist (also created/appended in attachDynamic... if needed)
+             if (!this._dynamicButtonContainer) {
+                this._dynamicButtonContainer = document.createElement('div');
+                this._dynamicButtonContainer.style.padding = '10px';
+                this._dynamicButtonContainer.style.borderTop = '1px solid #ccc';
+                this.UI.node.appendChild(this._dynamicButtonContainer);
+            }
         }
         this.UI.show();
+        // Re-attach dynamic listeners potentially adding buttons now that UI is enabled
+        // Consider if this is the best place or if loadDynamictractConfigs should handle UI state
+        // For now, let's assume load happens after UI potentially enabled.
     }
 
     // Disable the UI component
